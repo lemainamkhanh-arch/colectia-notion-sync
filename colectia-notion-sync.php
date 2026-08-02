@@ -40,7 +40,7 @@ class Colectia_Notion_Sync {
 	const OPT_GH_TOKEN   = 'cns_gh_token';
 	const OPT_RW_VER     = 'cns_rw_ver';
 	const TR_GH          = 'cns_gh_latest';
-	const PLUGIN_VERSION = '1.18.0'; // Tăng số này để buộc đồng bộ lại toàn bộ, kể cả trang không đổi
+	const PLUGIN_VERSION = '1.19.0'; // Tăng số này để buộc đồng bộ lại toàn bộ, kể cả trang không đổi
 
 	// Tên property trong Notion (phải khớp với database)
 	const P_TITLE    = 'Name';
@@ -1692,35 +1692,17 @@ class Colectia_Notion_Sync {
 	// Gắn nội dung vật liệu vào tab "Vật liệu" có sẵn của theme; nếu chưa có thì tự tạo tab mới.
 	public function material_tab( $tabs ) {
 		global $product;
+		// Từ nay chỉ dùng tab cns_materials; bỏ hẳn key tab WoodMart cũ.
+		unset( $tabs['chon-vat-lieu'] );
 		if ( ! $product ) { return $tabs; }
 		$materials = $this->get_linked_materials( $product->get_id() );
-		if ( ! is_array( $materials ) || ! $materials ) { return $tabs; }
-
-		$existing_key = '';
-		foreach ( array_keys( $tabs ) as $k ) {
-			$title = isset( $tabs[ $k ]['title'] ) ? $tabs[ $k ]['title'] : '';
-			if ( false !== stripos( $k, 'vat-lieu' ) || false !== stripos( $k, 'chon-vat-lieu' ) || false !== mb_stripos( $title, 'Vật liệu' ) ) {
-				$existing_key = $k;
-				break;
-			}
-		}
-
-		if ( $existing_key ) {
-			// Thay hoàn toàn tab cũ để không còn nội dung/shortcode trùng lặp.
-			$self = $this;
-			$tabs[ $existing_key ]['callback'] = function() use ( $self ) {
-				echo $self->render_materials(); // phpcs:ignore WordPress.Security.EscapeOutput
-			};
-		} else {
-			$self = $this;
-			$tabs['cns_materials'] = array(
-				'title'    => 'Vật liệu',
-				'priority' => 25,
-				'callback' => function() use ( $self ) {
-					echo $self->render_materials(); // phpcs:ignore WordPress.Security.EscapeOutput
-				},
-			);
-		}
+		if ( ! is_array( $materials ) || ! $materials ) { unset( $tabs['cns_materials'] ); return $tabs; }
+		$self = $this;
+		$tabs['cns_materials'] = array(
+			'title' => 'Vật liệu',
+			'priority' => 25,
+			'callback' => function() use ( $self ) { echo $self->render_materials(); }, // phpcs:ignore WordPress.Security.EscapeOutput
+		);
 		return $tabs;
 	}
 
