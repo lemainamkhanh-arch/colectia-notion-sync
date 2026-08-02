@@ -40,7 +40,7 @@ class Colectia_Notion_Sync {
 	const OPT_GH_TOKEN   = 'cns_gh_token';
 	const OPT_RW_VER     = 'cns_rw_ver';
 	const TR_GH          = 'cns_gh_latest';
-	const PLUGIN_VERSION = '1.13.0'; // Tăng số này để buộc đồng bộ lại toàn bộ, kể cả trang không đổi
+	const PLUGIN_VERSION = '1.14.0'; // Tăng số này để buộc đồng bộ lại toàn bộ, kể cả trang không đổi
 
 	// Tên property trong Notion (phải khớp với database)
 	const P_TITLE    = 'Name';
@@ -1761,7 +1761,7 @@ class Colectia_Notion_Sync {
 	public function material_tab_button_script() {
 		if ( ! is_product() ) { return; }
 		?>
-		<script>document.addEventListener('click',function(e){var a=e.target.closest('a,button');if(!a)return;var t=(a.textContent||'').toLowerCase();if(t.indexOf('chọn vật liệu')===-1&&t.indexOf('vat lieu')===-1&&t.indexOf('vật liệu')===-1)return;var tab=document.querySelector('.wc-tabs a[href*="materials"],.wd-nav-tabs a[href*="materials"]');if(tab){e.preventDefault();tab.click();document.querySelector('.woocommerce-tabs,.wc-tabs-wrapper')?.scrollIntoView({behavior:'smooth',block:'start'});}});</script>
+		<script>document.addEventListener('click',function(e){var a=e.target.closest('a,button');if(!a)return;var t=(a.textContent||'').toLowerCase();if(t.indexOf('chọn vật liệu')===-1)return;var tab=document.querySelector('.wc-tabs a[href*="materials"],.wd-nav-tabs a[href*="materials"]');if(tab){e.preventDefault();tab.click();document.querySelector('.woocommerce-tabs,.wc-tabs-wrapper')?.scrollIntoView({behavior:'smooth',block:'start'});}});</script>
 		<?php
 	}
 
