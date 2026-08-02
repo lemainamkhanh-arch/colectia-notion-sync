@@ -21,6 +21,7 @@ class Colectia_Notion_Sync {
 	const OPT_AUTO       = 'cns_auto_sync';
 	const OPT_LOG        = 'cns_last_log';
 	const OPT_DB_MAT     = 'cns_db_material';
+	const OPT_DB_MAT_COL = 'cns_db_material_collections';
 	const OPT_DB_COL     = 'cns_db_collection';
 	const MAT_CAT        = 'VẬT LIỆU';
 	const BRAND_TAX      = 'product_brand';
@@ -39,7 +40,7 @@ class Colectia_Notion_Sync {
 	const OPT_GH_TOKEN   = 'cns_gh_token';
 	const OPT_RW_VER     = 'cns_rw_ver';
 	const TR_GH          = 'cns_gh_latest';
-	const PLUGIN_VERSION = '1.11.0'; // Tăng số này để buộc đồng bộ lại toàn bộ, kể cả trang không đổi
+	const PLUGIN_VERSION = '1.12.0'; // Tăng số này để buộc đồng bộ lại toàn bộ, kể cả trang không đổi
 
 	// Tên property trong Notion (phải khớp với database)
 	const P_TITLE    = 'Name';
@@ -506,6 +507,13 @@ class Colectia_Notion_Sync {
 .cns-chip{display:inline-block;padding:6px 16px;border:1px solid #ddd;border-radius:999px;font-size:12px;color:#333;text-decoration:none;line-height:1.6;transition:border-color .2s,background .2s,color .2s;}
 .cns-chip:hover{border-color:#000;color:#000;}
 .cns-chip.is-active{background:#000;border-color:#000;color:#fff;}
+.cns-mat-collection{margin:0 0 66px;}
+.cns-mat-collection-head{display:flex;align-items:center;gap:18px;margin:0 0 22px;padding:0 0 16px;border-bottom:1px solid #e9e9e9;color:#222;text-decoration:none;}
+.cns-mat-collection-head img{width:72px;height:72px;object-fit:cover;border-radius:3px;background:#f4f4f4;}
+.cns-mat-collection-head span>span,.cns-mat-collection-kicker{display:block;font-size:10px;letter-spacing:.16em;color:#999;margin:0 0 5px;}
+.cns-mat-collection-head strong{display:block;font-size:20px;font-weight:500;line-height:1.2;}
+.cns-mat-collection-head em{display:block;margin-top:6px;color:#777;font-size:13px;line-height:1.5;font-style:normal;}
+@media(max-width:600px){.cns-mat-collection{margin-bottom:46px;}.cns-mat-collection-head strong{font-size:17px;}}
 .cns-mat-card .cns-mat-code{font-size:12px;color:#999;letter-spacing:.05em;margin-top:2px;}
 .cns-mat-wrap{max-width:1200px;margin:0 auto;padding:40px 20px 70px;}
 .cns-mat-crumb{font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:#999;margin-bottom:26px;}
@@ -573,6 +581,7 @@ class Colectia_Notion_Sync {
 			}
 		}
 		$this->sync_collection_db();
+		$this->sync_material_collections_db();
 		$this->sync_material_db();
 		$this->log[] = 'Xong: ' . date_i18n( 'Y-m-d H:i:s' );
 		$this->save_log();
@@ -922,7 +931,12 @@ class Colectia_Notion_Sync {
 		echo '</div>';
 		echo $this->render_mat_filters( $tt ? $tt->slug : '', $tc ? $tc->slug : '' );
 		if ( $posts ) {
-			echo $this->render_grid( $this->mat_items_from_posts( $posts ), ! $tt, 6 );
+			// Trang thư viện mặc định hiển thị theo từng bộ sưu tập; khi đang lọc thì giữ lưới đơn.
+			if ( ! $tt && ! $tc ) {
+				echo $this->render_material_collections( $posts );
+			} else {
+				echo $this->render_grid( $this->mat_items_from_posts( $posts ), false, 6 );
+			}
 		} else {
 			echo '<p class="cns-mat-empty">Chưa có vật liệu nào.</p>';
 		}
@@ -966,6 +980,39 @@ class Colectia_Notion_Sync {
 		}
 		$html .= '</div>';
 		return $html;
+	}
+
+	// Render từng bộ sưu tập cùng ảnh đại diện được đồng bộ từ database Notion.
+	private function render_material_collections( $posts ) {
+		$by_term = array();
+		$unassigned = array();
+		foreach ( $posts as $post ) {
+			$terms = wp_get_object_terms( $post->ID, self::TAX_MAT_COL );
+			if ( is_wp_error( $terms ) || ! $terms ) { $unassigned[] = $post; continue; }
+			foreach ( $terms as $term ) {
+				if ( ! isset( $by_term[ $term->term_id ] ) ) { $by_term[ $term->term_id ] = array( 'term' => $term, 'posts' => array() ); }
+				$by_term[ $term->term_id ]['posts'][] = $post;
+			}
+		}
+		$html = '<div class="cns-mat-collections">';
+		foreach ( $by_term as $group ) {
+			$term = $group['term'];
+			$link = get_term_link( $term );
+			$thumb = get_term_meta( $term->term_id, '_cns_mat_collection_thumb', true );
+			$html .= '<section class="cns-mat-collection">';
+			$html .= '<a class="cns-mat-collection-head" href="' . esc_url( is_wp_error( $link ) ? '' : $link ) . '">';
+			if ( $thumb ) { $html .= '<img src="' . esc_url( $thumb ) . '" alt="' . esc_attr( $term->name ) . '" loading="lazy" />'; }
+			$html .= '<span><span class="cns-mat-collection-kicker">BỘ SƯU TẬP</span><strong>' . esc_html( $term->name ) . '</strong>';
+			if ( $term->description ) { $html .= '<em>' . esc_html( $term->description ) . '</em>'; }
+			$html .= '</span></a>';
+			$html .= $this->render_grid( $this->mat_items_from_posts( $group['posts'] ), false, 6 );
+			$html .= '</section>';
+		}
+		if ( $unassigned ) {
+			$html .= '<section class="cns-mat-collection"><div class="cns-mat-collection-head"><span><span class="cns-mat-collection-kicker">VẬT LIỆU</span><strong>Khác</strong></span></div>';
+			$html .= $this->render_grid( $this->mat_items_from_posts( $unassigned ), false, 6 ) . '</section>';
+		}
+		return $html . '</div>';
 	}
 
 	private function render_single_material() {
@@ -1303,8 +1350,14 @@ class Colectia_Notion_Sync {
 			$code    = isset( $code_p['formula']['string'] ) ? $code_p['formula']['string'] : '';
 			$fac_p   = $this->prop( $props, 'FACTORY CODE' );
 			$factory = isset( $fac_p['rich_text'] ) ? trim( $this->plain_text( $fac_p['rich_text'] ) ) : '';
-			$bst_p   = $this->prop( $props, 'Bộ sưu tập vật liệu' );
-			$bst     = isset( $bst_p['select']['name'] ) ? $bst_p['select']['name'] : '';
+			// Bộ sưu tập vật liệu là relation tới database riêng để có ảnh đại diện và mô tả.
+			$bsts = $this->relation_titles( $this->prop( $props, 'Bộ sưu tập vật liệu' ) );
+			$bst  = $bsts ? implode( ', ', $bsts ) : '';
+			// Giữ tương thích dữ liệu select cũ trong lúc chuyển đổi.
+			if ( '' === $bst ) {
+				$bst_p = $this->prop( $props, 'Bộ sưu tập vật liệu (cũ)' );
+				$bst = isset( $bst_p['select']['name'] ) ? $bst_p['select']['name'] : '';
+			}
 
 			$post_id = $this->find_material_post( $p['id'], $name );
 			$data    = array(
@@ -1906,6 +1959,34 @@ class Colectia_Notion_Sync {
 			}
 		}
 		return null;
+	}
+
+	private function sync_material_collections_db() {
+		$db = $this->resolve_db_id( 'Bộ sưu tập vật liệu', self::OPT_DB_MAT_COL );
+		if ( ! $db ) { $this->log[] = 'Bỏ qua Bộ sưu tập vật liệu: chưa share integration với database.'; return; }
+		$pages = $this->query_db_pages( $db, $this->edit_filter() );
+		if ( is_wp_error( $pages ) ) { $this->log[] = 'LỖI Bộ sưu tập vật liệu: ' . $pages->get_error_message(); return; }
+		$this->log[] = 'Bộ sưu tập vật liệu: ' . count( $pages ) . ' mục ở trạng thái "' . self::S_EDIT . '".';
+		foreach ( $pages as $p ) {
+			$props = isset( $p['properties'] ) ? $p['properties'] : array();
+			$name = $this->title_of( $props );
+			if ( '' === $name ) { continue; }
+			$desc_p = $this->prop( $props, 'Mô tả' );
+			$desc = isset( $desc_p['rich_text'] ) ? $this->plain_text( $desc_p['rich_text'] ) : '';
+			$term = get_term_by( 'name', $name, self::TAX_MAT_COL );
+			if ( $term ) { wp_update_term( $term->term_id, self::TAX_MAT_COL, array( 'description' => $desc ) ); }
+			else { $made = wp_insert_term( $name, self::TAX_MAT_COL, array( 'description' => $desc ) ); $term = is_wp_error( $made ) ? false : get_term( $made['term_id'], self::TAX_MAT_COL ); }
+			if ( ! $term || is_wp_error( $term ) ) { $this->log[] = 'LỖI: không lưu được bộ sưu tập "' . $name . '"'; continue; }
+			$thumb = $this->prop( $props, 'Thumbnail' ); $url = '';
+			if ( ! empty( $thumb['files'][0] ) ) { $f = $thumb['files'][0]; $url = isset( $f['file']['url'] ) ? $f['file']['url'] : ( isset( $f['external']['url'] ) ? $f['external']['url'] : '' ); }
+			if ( $url ) { $aid = $this->sideload( $url, sanitize_title( $name ) . '-collection.jpg', 0 ); if ( $aid ) { update_term_meta( $term->term_id, '_cns_mat_collection_thumb', wp_get_attachment_url( $aid ) ); } }
+			$link = get_term_link( $term );
+			$this->notion_request( 'PATCH', '/pages/' . $p['id'], array( 'properties' => array(
+				'WP Link' => array( 'url' => is_wp_error( $link ) ? null : $link ),
+				self::P_SYNCWEB => array( 'status' => array( 'name' => self::S_DONE ) ),
+			) ) );
+			$this->log[] = '  → bộ sưu tập "' . $name . '"';
+		}
 	}
 
 	private function sync_material_db() {
