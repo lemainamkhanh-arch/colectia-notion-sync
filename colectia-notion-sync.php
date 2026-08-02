@@ -40,7 +40,7 @@ class Colectia_Notion_Sync {
 	const OPT_GH_TOKEN   = 'cns_gh_token';
 	const OPT_RW_VER     = 'cns_rw_ver';
 	const TR_GH          = 'cns_gh_latest';
-	const PLUGIN_VERSION = '1.12.0'; // Tăng số này để buộc đồng bộ lại toàn bộ, kể cả trang không đổi
+	const PLUGIN_VERSION = '1.13.0'; // Tăng số này để buộc đồng bộ lại toàn bộ, kể cả trang không đổi
 
 	// Tên property trong Notion (phải khớp với database)
 	const P_TITLE    = 'Name';
@@ -83,6 +83,7 @@ class Colectia_Notion_Sync {
 		add_action( self::CRON_HOOK, array( $this, 'cron_sync' ) );
 		add_action( 'wp_enqueue_scripts', array( $this, 'frontend_styles' ), 20 );
 		add_filter( 'woocommerce_product_tabs', array( $this, 'material_tab' ), 98 );
+		add_action( 'wp_footer', array( $this, 'material_tab_button_script' ), 99 );
 		add_action( 'init', array( $this, 'register_material_cpt' ) );
 		add_shortcode( 'colectia_materials', array( $this, 'materials_shortcode' ) );
 		add_action( 'admin_post_cns_migrate_materials', array( $this, 'handle_migrate_materials' ) );
@@ -515,6 +516,7 @@ class Colectia_Notion_Sync {
 .cns-mat-collection-head em{display:block;margin-top:6px;color:#777;font-size:13px;line-height:1.5;font-style:normal;}
 @media(max-width:600px){.cns-mat-collection{margin-bottom:46px;}.cns-mat-collection-head strong{font-size:17px;}}
 .cns-mat-card .cns-mat-code{font-size:12px;color:#999;letter-spacing:.05em;margin-top:2px;}
+.single-product .cns-materials{padding:8px 0 12px;}.single-product .cns-mat-group{margin-bottom:40px;}.single-product .cns-mat-grid{grid-template-columns:repeat(auto-fill,minmax(128px,1fr));gap:18px;}.single-product .cns-mat-name{font-size:12px;letter-spacing:.02em;text-transform:uppercase;}.single-product .cns-mat-thumb{border-radius:2px;}
 .cns-mat-wrap{max-width:1200px;margin:0 auto;padding:40px 20px 70px;}
 .cns-mat-crumb{font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:#999;margin-bottom:26px;}
 .cns-mat-crumb a{color:#999;text-decoration:none;}
@@ -1676,6 +1678,7 @@ class Colectia_Notion_Sync {
 			if ( isset( $mp['CODE']['formula']['string'] ) ) { $code = $mp['CODE']['formula']['string']; }
 			if ( '' === $code && isset( $mp['FACTORY CODE']['rich_text'] ) ) { $code = $this->plain_text( $mp['FACTORY CODE']['rich_text'] ); }
 			$link = isset( $mp['URL']['url'] ) ? $mp['URL']['url'] : '';
+			$collections = $this->relation_titles( $this->prop( $mp, 'Bộ sưu tập vật liệu' ) );
 
 			// Thumbnail: link file Notion hết hạn sau ~1 giờ nên phải tải về media library.
 			$thumb_url = '';
@@ -1708,6 +1711,7 @@ class Colectia_Notion_Sync {
 				'code'  => $code,
 				'url'   => $link,
 				'thumb' => $thumb_url,
+				'collection' => $collections ? implode( ', ', $collections ) : '',
 			);
 		}
 		update_post_meta( $prod_id, '_notion_mat_thumbs', $thumb_map );
@@ -1736,10 +1740,9 @@ class Colectia_Notion_Sync {
 		}
 
 		if ( $existing_key ) {
-			$orig = isset( $tabs[ $existing_key ]['callback'] ) ? $tabs[ $existing_key ]['callback'] : null;
+			// Thay hoàn toàn tab cũ để không còn nội dung/shortcode trùng lặp.
 			$self = $this;
-			$tabs[ $existing_key ]['callback'] = function( $key, $tab ) use ( $orig, $self ) {
-				if ( $orig && is_callable( $orig ) ) { call_user_func( $orig, $key, $tab ); }
+			$tabs[ $existing_key ]['callback'] = function() use ( $self ) {
 				echo $self->render_materials(); // phpcs:ignore WordPress.Security.EscapeOutput
 			};
 		} else {
@@ -1755,16 +1758,23 @@ class Colectia_Notion_Sync {
 		return $tabs;
 	}
 
+	public function material_tab_button_script() {
+		if ( ! is_product() ) { return; }
+		?>
+		<script>document.addEventListener('click',function(e){var a=e.target.closest('a,button');if(!a)return;var t=(a.textContent||'').toLowerCase();if(t.indexOf('chọn vật liệu')===-1&&t.indexOf('vat lieu')===-1&&t.indexOf('vật liệu')===-1)return;var tab=document.querySelector('.wc-tabs a[href*="materials"],.wd-nav-tabs a[href*="materials"]');if(tab){e.preventDefault();tab.click();document.querySelector('.woocommerce-tabs,.wc-tabs-wrapper')?.scrollIntoView({behavior:'smooth',block:'start'});}});</script>
+		<?php
+	}
+
 	public function render_materials() {
 		global $product;
 		if ( ! $product ) { return ''; }
 		$materials = $this->get_linked_materials( $product->get_id() );
 		if ( ! is_array( $materials ) || ! $materials ) { return ''; }
 
-		// Nhóm theo loại vật liệu.
+		// Ưu tiên chia theo Bộ sưu tập; vật liệu chưa thuộc bộ sưu tập sẽ nhóm theo Loại.
 		$groups = array();
 		foreach ( $materials as $m ) {
-			$g = '' !== $m['type'] ? $m['type'] : 'KHÁC';
+			$g = ! empty( $m['collection'] ) ? $m['collection'] : ( '' !== $m['type'] ? $m['type'] : 'Khác' );
 			if ( ! isset( $groups[ $g ] ) ) { $groups[ $g ] = array(); }
 			$groups[ $g ][] = $m;
 		}
