@@ -40,7 +40,7 @@ class Colectia_Notion_Sync {
 	const OPT_GH_TOKEN   = 'cns_gh_token';
 	const OPT_RW_VER     = 'cns_rw_ver';
 	const TR_GH          = 'cns_gh_latest';
-	const PLUGIN_VERSION = '1.19.0'; // Tăng số này để buộc đồng bộ lại toàn bộ, kể cả trang không đổi
+	const PLUGIN_VERSION = '1.20.0'; // Tăng số này để buộc đồng bộ lại toàn bộ, kể cả trang không đổi
 
 	// Tên property trong Notion (phải khớp với database)
 	const P_TITLE    = 'Name';
@@ -1708,7 +1708,19 @@ class Colectia_Notion_Sync {
 
 	public function add_product_material_box(){add_meta_box('cns_product_materials','Vật liệu liên kết với Notion',array($this,'render_product_material_box'),'product','normal','default');}
 	private function material_admin_item($id){$t=wp_get_object_terms($id,self::TAX_MAT_TYPE,array('fields'=>'names'));$c=wp_get_object_terms($id,self::TAX_MAT_COL,array('fields'=>'names'));return array('nid'=>get_post_meta($id,'_notion_page_id',true),'name'=>get_the_title($id),'type'=>(!is_wp_error($t)&&$t)?$t[0]:'','collection'=>(!is_wp_error($c)&&$c)?implode(', ',$c):'','color'=>get_post_meta($id,'_cns_mat_color',true),'code'=>get_post_meta($id,'_cns_mat_code',true),'url'=>get_permalink($id),'thumb'=>get_the_post_thumbnail_url($id,'medium'));}
-	public function render_product_material_box($post){$cur=get_post_meta($post->ID,'_notion_materials',true);$sel=array();foreach((array)$cur as $m){if(!empty($m['nid'])){$ids=get_posts(array('post_type'=>self::CPT_MAT,'post_status'=>'any','numberposts'=>1,'fields'=>'ids','meta_key'=>'_notion_page_id','meta_value'=>$m['nid']));if($ids)$sel[]=intval($ids[0]);}}wp_nonce_field('cns_product_materials','cns_product_materials_nonce');echo '<p>Chọn vật liệu; khi lưu Product, Relation Vật liệu trên Notion cũng được cập nhật.</p><div style="max-height:320px;overflow:auto;border:1px solid #ddd;padding:8px;">';foreach(get_posts(array('post_type'=>self::CPT_MAT,'post_status'=>'publish','numberposts'=>-1,'orderby'=>'title','order'=>'ASC')) as $mat){$id=$mat->ID;$t=wp_get_object_terms($id,self::TAX_MAT_TYPE,array('fields'=>'names'));$type=(!is_wp_error($t)&&$t)?$t[0]:'';echo '<label style="display:block;padding:6px 2px;border-bottom:1px solid #eee;"><input type="checkbox" name="cns_material_ids[]" value="'.esc_attr($id).'" '.checked(in_array($id,$sel,true),true,false).' /> <b>'.esc_html(get_the_title($id)).'</b>'.($type?' <span style="color:#777;">· '.esc_html($type).'</span>':'').'</label>';}echo '</div>';}
+	public function render_product_material_box($post){
+		$cur=get_post_meta($post->ID,'_notion_materials',true);$sel=array();
+		foreach((array)$cur as $m){if(!empty($m['nid'])){$ids=get_posts(array('post_type'=>self::CPT_MAT,'post_status'=>'any','numberposts'=>1,'fields'=>'ids','meta_key'=>'_notion_page_id','meta_value'=>$m['nid']));if($ids)$sel[]=intval($ids[0]);}}
+		wp_nonce_field('cns_product_materials','cns_product_materials_nonce');
+		echo '<p>Chọn vật liệu; khi lưu Product, Relation Vật liệu trên Notion cũng được cập nhật.</p><div style="max-height:420px;overflow:auto;border:1px solid #ddd;padding:8px;">';
+		foreach(get_posts(array('post_type'=>self::CPT_MAT,'post_status'=>'publish','numberposts'=>-1,'orderby'=>'title','order'=>'ASC')) as $mat){
+			$id=$mat->ID;$t=wp_get_object_terms($id,self::TAX_MAT_TYPE,array('fields'=>'names'));$type=(!is_wp_error($t)&&$t)?$t[0]:'';$thumb=get_the_post_thumbnail_url($id,'thumbnail');
+			$visual=$thumb?'<img src="'.esc_url($thumb).'" alt="" style="width:44px;height:44px;object-fit:cover;border-radius:3px;display:block;" />':'<span style="width:44px;height:44px;background:#f1f1f1;border-radius:3px;display:block;"></span>';
+			echo '<label style="display:flex;align-items:center;gap:9px;padding:7px 2px;border-bottom:1px solid #eee;cursor:pointer;"><input type="checkbox" name="cns_material_ids[]" value="'.esc_attr($id).'" '.checked(in_array($id,$sel,true),true,false).' /><span>'.$visual.'</span><span><b>'.esc_html(get_the_title($id)).'</b>'.($type?'<br><small style="color:#777;">'.esc_html($type).'</small>':'').'</span></label>';
+		}
+		echo '</div>';
+	}
+
 	public function save_product_material_box($post_id,$post,$update){if((defined('DOING_AUTOSAVE')&&DOING_AUTOSAVE)||empty($_POST['cns_product_materials_nonce'])||!wp_verify_nonce(sanitize_text_field(wp_unslash($_POST['cns_product_materials_nonce'])),'cns_product_materials')||!current_user_can('edit_post',$post_id))return;$ids=array_values(array_unique(array_filter(array_map('absint',(array)(isset($_POST['cns_material_ids'])?wp_unslash($_POST['cns_material_ids']):array())))));$items=array();$rels=array();foreach($ids as $id){if(self::CPT_MAT!==get_post_type($id))continue;$item=$this->material_admin_item($id);$items[]=$item;if(!empty($item['nid']))$rels[]=array('id'=>$item['nid']);}if($items)update_post_meta($post_id,'_notion_materials',$items);else delete_post_meta($post_id,'_notion_materials');$nid=get_post_meta($post_id,'_notion_page_id',true);if($nid)$this->notion_request('PATCH','/pages/'.$nid,array('properties'=>array(self::P_MATERIAL=>array('relation'=>$rels),self::P_SYNCWEB=>array('status'=>array('name'=>self::S_DONE)))));}
 
 	public function material_tab_button_script() {
