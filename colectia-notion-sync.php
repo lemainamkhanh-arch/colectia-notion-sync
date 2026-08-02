@@ -4,7 +4,7 @@
  * Plugin URI:  https://colectia.vn
  * Update URI:  https://github.com/lemainamkhanh-arch/colectia-notion-sync
  * Description: Đồng bộ sản phẩm từ Notion database "Furniture Design" sang WooCommerce. Tick "Đăng lên web" trong Notion — plugin tạo/cập nhật sản phẩm và ghi ngược WP Product ID + link về Notion.
- * Version:     1.26.0
+ * Version:     1.27.0
  * Author:      COLECTIA
  * License:     GPLv2 or later
  * Requires PHP: 7.2
@@ -40,7 +40,7 @@ class Colectia_Notion_Sync {
 	const OPT_GH_TOKEN   = 'cns_gh_token';
 	const OPT_RW_VER     = 'cns_rw_ver';
 	const TR_GH          = 'cns_gh_latest';
-	const PLUGIN_VERSION = '1.26.0'; // Tăng số này để buộc đồng bộ lại toàn bộ, kể cả trang không đổi
+	const PLUGIN_VERSION = '1.27.0'; // Tăng số này để buộc đồng bộ lại toàn bộ, kể cả trang không đổi
 
 	// Tên property trong Notion (phải khớp với database)
 	const P_TITLE    = 'Name';
@@ -1254,22 +1254,34 @@ class Colectia_Notion_Sync {
 	/* ---------------- 1.8.0: chế độ catalog (bỏ giá) ---------------- */
 
 	private function catalog_mode_hooks() {
+		// Catalog vẫn không hiển thị giá, nhưng khách có thể thêm sản phẩm vào Project.
 		add_filter( 'woocommerce_get_price_html', '__return_empty_string', 99 );
-		add_filter( 'woocommerce_is_purchasable', '__return_false', 99 );
-		add_filter( 'woocommerce_show_variation_price', '__return_false', 99 );
-		add_action( 'init', array( $this, 'remove_add_to_cart' ), 20 );
-		add_action( 'wp_enqueue_scripts', array( $this, 'dequeue_cart_assets' ), 99 );
+		add_filter( 'woocommerce_is_purchasable', '__return_true', 99 );
+		add_filter( 'woocommerce_product_single_add_to_cart_text', array( $this, 'project_cart_label' ), 99 );
+		add_filter( 'woocommerce_product_add_to_cart_text', array( $this, 'project_cart_label' ), 99 );
+		add_action( 'wp', array( $this, 'configure_project_cart' ), 30 );
 	}
 
-	public function remove_add_to_cart() {
-		remove_action( 'woocommerce_after_shop_loop_item', 'woocommerce_template_loop_add_to_cart', 10 );
-		remove_action( 'woocommerce_single_product_summary', 'woocommerce_template_single_add_to_cart', 30 );
-		remove_action( 'woocommerce_simple_add_to_cart', 'woocommerce_simple_add_to_cart', 30 );
+	public function project_cart_label() { return 'Add to Project'; }
+
+	public function configure_project_cart() {
+		remove_action( 'woocommerce_proceed_to_checkout', 'woocommerce_button_proceed_to_checkout', 20 );
+		add_action( 'woocommerce_proceed_to_checkout', array( $this, 'project_quote_button' ), 20 );
 	}
 
-	public function dequeue_cart_assets() {
-		wp_dequeue_script( 'wc-cart-fragments' );
-		wp_dequeue_script( 'wc-add-to-cart' );
+	public function project_quote_button() {
+		if ( ! function_exists( 'WC' ) || ! WC()->cart || WC()->cart->is_empty() ) { return; }
+		$items = array();
+		foreach ( WC()->cart->get_cart() as $cart_item ) {
+			$product = isset( $cart_item['data'] ) ? $cart_item['data'] : null; if ( ! $product ) { continue; }
+			$pid = $product->get_id(); $image = get_the_post_thumbnail_url( $pid, 'medium' ); if ( ! $image ) { $image = wc_placeholder_img_src( 'medium' ); }
+			$materials = get_post_meta( $pid, '_notion_materials', true ); if ( ! is_array( $materials ) ) { $materials = array(); }
+			$clean = array(); foreach ( $materials as $m ) { $clean[] = array( 'type'=>isset($m['type'])?$m['type']:'', 'name'=>isset($m['name'])?$m['name']:'', 'code'=>isset($m['code'])?$m['code']:'', 'thumb'=>isset($m['thumb'])?$m['thumb']:'' ); }
+			$items[] = array( 'name'=>$product->get_name(), 'qty'=>intval($cart_item['quantity']), 'image'=>$image, 'materials'=>$clean );
+		}
+		if ( ! $items ) { return; }
+		echo '<a href="#" class="checkout-button button alt cns-project-quote" data-project="' . esc_attr( wp_json_encode( $items ) ) . '">Xuất báo giá dự án</a>';
+		echo '<script>(function(){var button=document.querySelector(".cns-project-quote");if(!button)return;button.addEventListener("click",function(e){e.preventDefault();var items=JSON.parse(button.dataset.project||"[]"),esc=function(v){var d=document.createElement("div");d.textContent=v||"";return d.innerHTML},content=items.map(function(item,i){var mats=(item.materials||[]).map(function(m){return `<li>${m.thumb?`<img src="${esc(m.thumb)}">`:""}<span><b>${esc(m.type||"Vật liệu")}</b><br>${esc(m.name)}${m.code?` · ${esc(m.code)}`:""}</span></li>`}).join("");return `<section class="item"><div class="product"><span class="num">${String(i+1).padStart(2,"0")}</span><img src="${esc(item.image)}"><div><h2>${esc(item.name)}</h2><p>Số lượng: ${item.qty}</p></div></div>${mats?`<div class="materials"><h3>Vật liệu</h3><ul>${mats}</ul></div>`:""}</section>`}).join(""),w=window.open("","_blank");if(!w)return;w.document.write(`<!doctype html><html><head><title>Báo giá dự án COLECTIA</title><style>@page{size:A4;margin:0}*{box-sizing:border-box}body{margin:0;background:#f4f2ee;font-family:"Helvetica Neue",Arial,sans-serif;color:#20201e}.sheet{width:210mm;min-height:297mm;background:#fff;margin:auto;padding:21mm 20mm}.head{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:1px solid #d9d5cf;padding-bottom:14mm}.logo{width:142px;height:32px;object-fit:contain;object-position:left}.eyebrow{font-size:10px;letter-spacing:.16em;color:#77736c;text-transform:uppercase;margin:10px 0 6px}.title{font-size:30px;letter-spacing:.05em;font-weight:500;margin:0}.date{font-size:11px;color:#77736c;line-height:1.6;text-align:right}.item{padding:13mm 0;border-bottom:1px solid #e4e0da}.product{display:flex;align-items:center;gap:13px}.num{font-size:10px;color:#77736c}.product>img{width:72px;height:72px;object-fit:cover}.product h2{font-size:18px;font-weight:500;margin:0 0 5px}.product p{margin:0;font-size:12px;color:#77736c}.materials{margin:12px 0 0 99px}.materials h3{font-size:10px;letter-spacing:.13em;text-transform:uppercase;color:#77736c;margin:0 0 8px}.materials ul{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.materials li{display:flex;align-items:center;gap:8px;font-size:11px;line-height:1.4}.materials li img{width:34px;height:34px;object-fit:cover}.materials b{font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:#77736c}.foot{margin-top:18mm;border-top:1px solid #d9d5cf;padding-top:7mm;display:flex;justify-content:space-between;font-size:9px;line-height:1.6;color:#77736c}@media print{body{background:#fff}.sheet{margin:0}}</style></head><body><main class="sheet"><header class="head"><div><img class="logo" src="https://colectia.vn/wp-content/uploads/2025/10/Logo.svg"><p class="eyebrow">Project selection</p><h1 class="title">BÁO GIÁ DỰ ÁN</h1></div><p class="date">Ngày xuất<br><b>${new Date().toLocaleDateString("vi-VN")}</b></p></header>${content}<footer class="foot"><span>COLECTIA VIETNAM<br>colectia.vn</span><span>Báo giá được tạo từ danh sách Project.<br>Vui lòng liên hệ để xác nhận báo giá.</span></footer></main></body></html>`);w.document.close();w.onload=function(){w.focus();w.print()}})})();</script>';
 	}
 
 	/* ---------------- 1.8.0: đồng bộ Material DB → CPT ---------------- */
