@@ -40,7 +40,7 @@ class Colectia_Notion_Sync {
 	const OPT_GH_TOKEN   = 'cns_gh_token';
 	const OPT_RW_VER     = 'cns_rw_ver';
 	const TR_GH          = 'cns_gh_latest';
-	const PLUGIN_VERSION = '1.17.0'; // Tăng số này để buộc đồng bộ lại toàn bộ, kể cả trang không đổi
+	const PLUGIN_VERSION = '1.18.0'; // Tăng số này để buộc đồng bộ lại toàn bộ, kể cả trang không đổi
 
 	// Tên property trong Notion (phải khớp với database)
 	const P_TITLE    = 'Name';
@@ -1699,7 +1699,7 @@ class Colectia_Notion_Sync {
 		$existing_key = '';
 		foreach ( array_keys( $tabs ) as $k ) {
 			$title = isset( $tabs[ $k ]['title'] ) ? $tabs[ $k ]['title'] : '';
-			if ( false !== stripos( $k, 'vat-lieu' ) || false !== mb_stripos( $title, 'Vật liệu' ) ) {
+			if ( false !== stripos( $k, 'vat-lieu' ) || false !== stripos( $k, 'chon-vat-lieu' ) || false !== mb_stripos( $title, 'Vật liệu' ) ) {
 				$existing_key = $k;
 				break;
 			}
