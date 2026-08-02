@@ -1,7 +1,7 @@
 === COLECTIA Notion Sync ===
 Requires at least: 5.8
 Requires PHP: 7.2
-Stable tag: 1.25.0
+Stable tag: 1.26.0
 License: GPLv2 or later
 
 Đồng bộ sản phẩm từ Notion database "Furniture Design" sang WooCommerce.
@@ -51,6 +51,9 @@ Ghi chú: khi nâng cấp plugin lên bản có trường mới, lần "Đồng 
 2. Tạo Notion integration tại https://www.notion.so/profile/integrations (Internal, quyền Read + Update + Insert content).
 3. Trong Notion, mở database Furniture Design → menu "•••" → Connections → thêm integration vừa tạo.
 4. wp-admin → Settings → Notion Sync → dán token → Lưu → bấm "Đồng bộ ngay" để test.
+
+== 1.26.0 ==
+* PDF báo giá dùng hoàn toàn font không chân theo branding COLECTIA; footer nằm trong khổ trang A4.
 
 == 1.25.0 ==
 * Thiết kế lại PDF báo giá theo phong cách COLECTIA, thêm logo branding, layout A4 và typography cao cấp.
