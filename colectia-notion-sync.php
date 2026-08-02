@@ -40,7 +40,7 @@ class Colectia_Notion_Sync {
 	const OPT_GH_TOKEN   = 'cns_gh_token';
 	const OPT_RW_VER     = 'cns_rw_ver';
 	const TR_GH          = 'cns_gh_latest';
-	const PLUGIN_VERSION = '1.16.0'; // Tăng số này để buộc đồng bộ lại toàn bộ, kể cả trang không đổi
+	const PLUGIN_VERSION = '1.17.0'; // Tăng số này để buộc đồng bộ lại toàn bộ, kể cả trang không đổi
 
 	// Tên property trong Notion (phải khớp với database)
 	const P_TITLE    = 'Name';
@@ -84,6 +84,7 @@ class Colectia_Notion_Sync {
 		add_action( 'wp_enqueue_scripts', array( $this, 'frontend_styles' ), 20 );
 		add_filter( 'woocommerce_product_tabs', array( $this, 'material_tab' ), 98 );
 		add_action( 'add_meta_boxes_product', array( $this, 'add_product_material_box' ) );
+		add_action( 'save_post_product', array( $this, 'save_product_material_box' ), 20, 3 );
 		add_action( 'wp_footer', array( $this, 'material_tab_button_script' ), 99 );
 		add_action( 'init', array( $this, 'register_material_cpt' ) );
 		add_shortcode( 'colectia_materials', array( $this, 'materials_shortcode' ) );
@@ -936,11 +937,7 @@ class Colectia_Notion_Sync {
 		echo $this->render_mat_filters( $tt ? $tt->slug : '', $tc ? $tc->slug : '' );
 		if ( $posts ) {
 			// Trang thư viện mặc định hiển thị theo từng bộ sưu tập; khi đang lọc thì giữ lưới đơn.
-			if ( ! $tt && ! $tc ) {
-				echo $this->render_material_collections( $posts );
-			} else {
-				echo $this->render_grid( $this->mat_items_from_posts( $posts ), false, 6 );
-			}
+			echo $this->render_materials_by_type( $posts );
 		} else {
 			echo '<p class="cns-mat-empty">Chưa có vật liệu nào.</p>';
 		}
@@ -980,36 +977,10 @@ class Colectia_Notion_Sync {
 	}
 
 	// Render từng bộ sưu tập cùng ảnh đại diện được đồng bộ từ database Notion.
-	private function render_material_collections( $posts ) {
-		$by_term = array();
-		$unassigned = array();
-		foreach ( $posts as $post ) {
-			$terms = wp_get_object_terms( $post->ID, self::TAX_MAT_COL );
-			if ( is_wp_error( $terms ) || ! $terms ) { $unassigned[] = $post; continue; }
-			foreach ( $terms as $term ) {
-				if ( ! isset( $by_term[ $term->term_id ] ) ) { $by_term[ $term->term_id ] = array( 'term' => $term, 'posts' => array() ); }
-				$by_term[ $term->term_id ]['posts'][] = $post;
-			}
-		}
-		$html = '<div class="cns-mat-collections">';
-		foreach ( $by_term as $group ) {
-			$term = $group['term'];
-			$link = get_term_link( $term );
-			$thumb = get_term_meta( $term->term_id, '_cns_mat_collection_thumb', true );
-			$html .= '<section class="cns-mat-collection">';
-			$html .= '<a class="cns-mat-collection-head" href="' . esc_url( is_wp_error( $link ) ? '' : $link ) . '">';
-			if ( $thumb ) { $html .= '<img src="' . esc_url( $thumb ) . '" alt="' . esc_attr( $term->name ) . '" loading="lazy" />'; }
-			$html .= '<span><span class="cns-mat-collection-kicker">BỘ SƯU TẬP</span><strong>' . esc_html( $term->name ) . '</strong>';
-			if ( $term->description ) { $html .= '<em>' . esc_html( $term->description ) . '</em>'; }
-			$html .= '</span></a>';
-			$html .= $this->render_grid( $this->mat_items_from_posts( $group['posts'] ), false, 6 );
-			$html .= '</section>';
-		}
-		if ( $unassigned ) {
-			$html .= '<section class="cns-mat-collection"><div class="cns-mat-collection-head"><span><span class="cns-mat-collection-kicker">VẬT LIỆU</span><strong>Khác</strong></span></div>';
-			$html .= $this->render_grid( $this->mat_items_from_posts( $unassigned ), false, 6 ) . '</section>';
-		}
-		return $html . '</div>';
+	private function render_materials_by_type( $posts ) {
+		$types=array(); foreach($posts as $post){$t=wp_get_object_terms($post->ID,self::TAX_MAT_TYPE);$n=(!is_wp_error($t)&&$t)?$t[0]->name:'Khác';$types[$n][]=$post;}
+		$order=array('Vải','Đá','Da','Kim loại','Gỗ','Khác');uksort($types,function($a,$b)use($order){$x=array_search($a,$order,true);$y=array_search($b,$order,true);return(false===$x?99:$x)-(false===$y?99:$y);});
+		$html='<div class="cns-mat-type-library">';foreach($types as $type=>$items){$sets=array();$plain=array();foreach($items as $post){$cs=wp_get_object_terms($post->ID,self::TAX_MAT_COL);if(is_wp_error($cs)||!$cs){$plain[]=$post;continue;}foreach($cs as $c){$sets[$c->term_id]['term']=$c;$sets[$c->term_id]['posts'][]=$post;}}$html.='<section class="cns-mat-type-section"><h2 class="cns-mat-type-title">'.esc_html($type).'</h2>';foreach($sets as $set){$term=$set['term'];$thumb=get_term_meta($term->term_id,'_cns_mat_collection_thumb',true);$html.='<div class="cns-mat-collection"><div class="cns-mat-collection-head">'.($thumb?'<img src="'.esc_url($thumb).'" alt="'.esc_attr($term->name).'" loading="lazy" />':'').'<span><span class="cns-mat-collection-kicker">BỘ SƯU TẬP</span><strong>'.esc_html($term->name).'</strong>'.($term->description?'<em>'.esc_html($term->description).'</em>':'').'</span></div>'.$this->render_grid($this->mat_items_from_posts($set['posts']),false,6).'</div>';}$html.= $plain?$this->render_grid($this->mat_items_from_posts($plain),false,6):'';$html.='</section>';}return $html.'</div>';
 	}
 
 	private function render_single_material() {
@@ -1753,17 +1724,10 @@ class Colectia_Notion_Sync {
 		return $tabs;
 	}
 
-	public function add_product_material_box() {
-		add_meta_box( 'cns_product_materials', 'Vật liệu liên kết từ Notion', array( $this, 'render_product_material_box' ), 'product', 'side', 'default' );
-	}
-	public function render_product_material_box( $post ) {
-		$items = get_post_meta( $post->ID, '_notion_materials', true );
-		echo '<p style="margin-top:0;color:#666;">Được chọn trong trường <b>Vật liệu</b> của Furniture Design trên Notion.</p>';
-		if ( ! is_array( $items ) || ! $items ) { echo '<p>Chưa có vật liệu liên kết.</p>'; return; }
-		echo '<ul style="margin:0;">';
-		foreach ( $items as $m ) { $name = isset( $m['name'] ) ? $m['name'] : 'Vật liệu'; $type = isset( $m['type'] ) ? $m['type'] : ''; $collection = isset( $m['collection'] ) ? $m['collection'] : ''; echo '<li style="padding:8px 0;border-top:1px solid #eee;"><b>' . esc_html( $name ) . '</b>' . ( $type ? '<br><span style="color:#666;">' . esc_html( $type ) . '</span>' : '' ) . ( $collection ? ' · <span style="color:#666;">' . esc_html( $collection ) . '</span>' : '' ) . '</li>'; }
-		echo '</ul>';
-	}
+	public function add_product_material_box(){add_meta_box('cns_product_materials','Vật liệu liên kết với Notion',array($this,'render_product_material_box'),'product','normal','default');}
+	private function material_admin_item($id){$t=wp_get_object_terms($id,self::TAX_MAT_TYPE,array('fields'=>'names'));$c=wp_get_object_terms($id,self::TAX_MAT_COL,array('fields'=>'names'));return array('nid'=>get_post_meta($id,'_notion_page_id',true),'name'=>get_the_title($id),'type'=>(!is_wp_error($t)&&$t)?$t[0]:'','collection'=>(!is_wp_error($c)&&$c)?implode(', ',$c):'','color'=>get_post_meta($id,'_cns_mat_color',true),'code'=>get_post_meta($id,'_cns_mat_code',true),'url'=>get_permalink($id),'thumb'=>get_the_post_thumbnail_url($id,'medium'));}
+	public function render_product_material_box($post){$cur=get_post_meta($post->ID,'_notion_materials',true);$sel=array();foreach((array)$cur as $m){if(!empty($m['nid'])){$ids=get_posts(array('post_type'=>self::CPT_MAT,'post_status'=>'any','numberposts'=>1,'fields'=>'ids','meta_key'=>'_notion_page_id','meta_value'=>$m['nid']));if($ids)$sel[]=intval($ids[0]);}}wp_nonce_field('cns_product_materials','cns_product_materials_nonce');echo '<p>Chọn vật liệu; khi lưu Product, Relation Vật liệu trên Notion cũng được cập nhật.</p><div style="max-height:320px;overflow:auto;border:1px solid #ddd;padding:8px;">';foreach(get_posts(array('post_type'=>self::CPT_MAT,'post_status'=>'publish','numberposts'=>-1,'orderby'=>'title','order'=>'ASC')) as $mat){$id=$mat->ID;$t=wp_get_object_terms($id,self::TAX_MAT_TYPE,array('fields'=>'names'));$type=(!is_wp_error($t)&&$t)?$t[0]:'';echo '<label style="display:block;padding:6px 2px;border-bottom:1px solid #eee;"><input type="checkbox" name="cns_material_ids[]" value="'.esc_attr($id).'" '.checked(in_array($id,$sel,true),true,false).' /> <b>'.esc_html(get_the_title($id)).'</b>'.($type?' <span style="color:#777;">· '.esc_html($type).'</span>':'').'</label>';}echo '</div>';}
+	public function save_product_material_box($post_id,$post,$update){if((defined('DOING_AUTOSAVE')&&DOING_AUTOSAVE)||empty($_POST['cns_product_materials_nonce'])||!wp_verify_nonce(sanitize_text_field(wp_unslash($_POST['cns_product_materials_nonce'])),'cns_product_materials')||!current_user_can('edit_post',$post_id))return;$ids=array_values(array_unique(array_filter(array_map('absint',(array)(isset($_POST['cns_material_ids'])?wp_unslash($_POST['cns_material_ids']):array())))));$items=array();$rels=array();foreach($ids as $id){if(self::CPT_MAT!==get_post_type($id))continue;$item=$this->material_admin_item($id);$items[]=$item;if(!empty($item['nid']))$rels[]=array('id'=>$item['nid']);}if($items)update_post_meta($post_id,'_notion_materials',$items);else delete_post_meta($post_id,'_notion_materials');$nid=get_post_meta($post_id,'_notion_page_id',true);if($nid)$this->notion_request('PATCH','/pages/'.$nid,array('properties'=>array(self::P_MATERIAL=>array('relation'=>$rels),self::P_SYNCWEB=>array('status'=>array('name'=>self::S_DONE)))));}
 
 	public function material_tab_button_script() {
 		if ( ! is_product() ) { return; }
