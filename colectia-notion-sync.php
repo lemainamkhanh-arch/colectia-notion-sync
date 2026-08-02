@@ -40,7 +40,7 @@ class Colectia_Notion_Sync {
 	const OPT_GH_TOKEN   = 'cns_gh_token';
 	const OPT_RW_VER     = 'cns_rw_ver';
 	const TR_GH          = 'cns_gh_latest';
-	const PLUGIN_VERSION = '1.15.0'; // Tăng số này để buộc đồng bộ lại toàn bộ, kể cả trang không đổi
+	const PLUGIN_VERSION = '1.16.0'; // Tăng số này để buộc đồng bộ lại toàn bộ, kể cả trang không đổi
 
 	// Tên property trong Notion (phải khớp với database)
 	const P_TITLE    = 'Name';
@@ -975,8 +975,6 @@ class Colectia_Notion_Sync {
 		}
 		$html .= '</div>';
 		// Bộ sưu tập được thể hiện bằng từng section, không cần thanh lọc riêng.
-			$html .= '</div>';
-		}
 		$html .= '</div>';
 		return $html;
 	}
