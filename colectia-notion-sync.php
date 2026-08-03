@@ -4,7 +4,7 @@
  * Plugin URI:  https://colectia.vn
  * Update URI:  https://github.com/lemainamkhanh-arch/colectia-notion-sync
  * Description: Đồng bộ sản phẩm từ Notion database "Furniture Design" sang WooCommerce. Tick "Đăng lên web" trong Notion — plugin tạo/cập nhật sản phẩm và ghi ngược WP Product ID + link về Notion.
- * Version:     1.41.3
+ * Version:     1.41.4
  * Author:      COLECTIA
  * License:     GPLv2 or later
  * Requires PHP: 7.2
@@ -40,7 +40,7 @@ class Colectia_Notion_Sync {
 	const OPT_GH_TOKEN   = 'cns_gh_token';
 	const OPT_RW_VER     = 'cns_rw_ver';
 	const TR_GH          = 'cns_gh_latest';
-	const PLUGIN_VERSION = '1.41.3'; // Tăng số này để buộc đồng bộ lại toàn bộ, kể cả trang không đổi
+	const PLUGIN_VERSION = '1.41.4'; // Tăng số này để buộc đồng bộ lại toàn bộ, kể cả trang không đổi
 
 	// Tên property trong Notion (phải khớp với database)
 	const P_TITLE    = 'Name';
@@ -1355,7 +1355,7 @@ public function moodboard_export_script() {
 function waitImages(doc,cb){var imgs=doc.images?Array.prototype.slice.call(doc.images):[];var left=imgs.length;if(!left){cb();return}var done=false;function fin(){if(done)return;done=true;cb()}imgs.forEach(function(im){if(im.complete){if(!--left)fin();return}im.addEventListener('load',function(){if(!--left)fin()});im.addEventListener('error',function(){if(!--left)fin()})});setTimeout(fin,2500)}
 function printViaIframe(html){var old=document.getElementById('cns-print-frame');if(old)old.parentNode.removeChild(old);var f=document.createElement('iframe');f.id='cns-print-frame';f.setAttribute('aria-hidden','true');f.style.cssText='position:fixed;right:0;bottom:0;width:0;height:0;border:0;visibility:hidden';document.body.appendChild(f);var d=f.contentWindow.document;d.open();d.write(html);d.close();waitImages(d,function(){try{f.contentWindow.focus();f.contentWindow.print()}catch(e){printViaPopup(html)}})}
 function printViaPopup(html){var w=window.open('','_blank');if(!w){alert('Vui lòng cho phép cửa sổ bật lên (popup) để xuất Moodboard, sau đó thử lại.');return}w.document.open();w.document.write(html);w.document.close();waitImages(w.document,function(){try{w.focus();w.print()}catch(e){}})}
-b.addEventListener('click',function(){var html=build();if(!html)return;printViaIframe(html)})})();</script>
+b.addEventListener('click',function(){var w=window.open('','_blank');if(!w){alert('Trình duyệt đang chặn cửa sổ bản in. Vui lòng cho phép popup cho colectia.vn rồi thử lại.');return}var html=build();if(!html){w.close();return}w.document.open();w.document.write(html);w.document.close();var printed=false;function go(){if(printed)return;printed=true;try{w.focus();w.print()}catch(e){}}w.onload=go;setTimeout(go,900)})})();</script>
 <?php
 }
 
