@@ -1,7 +1,7 @@
 === COLECTIA Notion Sync ===
 Requires at least: 5.8
 Requires PHP: 7.2
-Stable tag: 1.33.0
+Stable tag: 1.34.0
 License: GPLv2 or later
 
 Đồng bộ sản phẩm từ Notion database "Furniture Design" sang WooCommerce.
@@ -51,6 +51,10 @@ Ghi chú: khi nâng cấp plugin lên bản có trường mới, lần "Đồng 
 2. Tạo Notion integration tại https://www.notion.so/profile/integrations (Internal, quyền Read + Update + Insert content).
 3. Trong Notion, mở database Furniture Design → menu "•••" → Connections → thêm integration vừa tạo.
 4. wp-admin → Settings → Notion Sync → dán token → Lưu → bấm "Đồng bộ ngay" để test.
+
+== 1.34.0 ==
+* Chuyển Moodboard lên trên Tổng quan dự án; xóa tiêu đề Tổng cộng giỏ hàng còn sót.
+* Nút THÊM VÀO DỰ ÁN trên Single Product dùng nền trắng như thẻ chọn vật liệu.
 
 == 1.33.0 ==
 * Đổi thông báo giỏ hàng thành Dự án, sửa tổng số lượng danh mục realtime và cải thiện PRODUCT LIST.
