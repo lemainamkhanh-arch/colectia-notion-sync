@@ -4,7 +4,7 @@
  * Plugin URI:  https://colectia.vn
  * Update URI:  https://github.com/lemainamkhanh-arch/colectia-notion-sync
  * Description: Đồng bộ sản phẩm từ Notion database "Furniture Design" sang WooCommerce. Tick "Đăng lên web" trong Notion — plugin tạo/cập nhật sản phẩm và ghi ngược WP Product ID + link về Notion.
- * Version:     1.42.9
+ * Version:     1.43.0
  * Author:      COLECTIA
  * License:     GPLv2 or later
  * Requires PHP: 7.2
@@ -40,7 +40,7 @@ class Colectia_Notion_Sync {
 	const OPT_GH_TOKEN   = 'cns_gh_token';
 	const OPT_RW_VER     = 'cns_rw_ver';
 	const TR_GH          = 'cns_gh_latest';
-	const PLUGIN_VERSION = '1.42.9'; // Tăng số này để buộc đồng bộ lại toàn bộ, kể cả trang không đổi
+	const PLUGIN_VERSION = '1.43.0'; // Tăng số này để buộc đồng bộ lại toàn bộ, kể cả trang không đổi
 
 	// Tên property trong Notion (phải khớp với database)
 	const P_TITLE    = 'Name';
@@ -1026,18 +1026,32 @@ class Colectia_Notion_Sync {
 				echo '<div class="cns-mat-sec"><div class="cns-mat-sec-title">Mô tả</div><div class="cns-notion-content">' . $content . '</div></div>';
 			}
 			$this->render_material_products( get_the_title() );
-			if ( $tname ) {
-				$rel = get_posts( array(
-					'post_type' => self::CPT_MAT, 'post_status' => 'publish', 'posts_per_page' => 8,
-					'post__not_in' => array( $id ), 'orderby' => 'rand',
+			// Ưu tiên cùng Bộ sưu tập, sau đó mới thêm cùng Nhóm vật liệu.
+			$related = array();
+			$used_ids = array( $id );
+			$collection_terms = wp_get_object_terms( $id, self::TAX_MAT_COL, array( 'fields' => 'ids' ) );
+			if ( ! is_wp_error( $collection_terms ) && $collection_terms ) {
+				$same_collection = get_posts( array(
+					'post_type' => self::CPT_MAT, 'post_status' => 'publish', 'posts_per_page' => 6,
+					'post__not_in' => $used_ids, 'orderby' => 'menu_order date', 'order' => 'DESC',
+					'tax_query' => array( array( 'taxonomy' => self::TAX_MAT_COL, 'field' => 'term_id', 'terms' => $collection_terms ) ),
+				) );
+				foreach ( $same_collection as $post ) { $related[] = $post; $used_ids[] = $post->ID; }
+			}
+			if ( count( $related ) < 6 && $tname ) {
+				$same_type = get_posts( array(
+					'post_type' => self::CPT_MAT, 'post_status' => 'publish', 'posts_per_page' => 6 - count( $related ),
+					'post__not_in' => $used_ids, 'orderby' => 'menu_order date', 'order' => 'DESC',
 					'tax_query' => array( array( 'taxonomy' => self::TAX_MAT_TYPE, 'field' => 'name', 'terms' => $tname ) ),
 				) );
-				if ( $rel ) {
-					echo '<div class="cns-mat-sec"><div class="cns-mat-sec-title">Vật liệu cùng nhóm</div>';
-					echo $this->render_grid( $this->mat_items_from_posts( $rel ), false, 4 );
-					echo '</div>';
-				}
+				foreach ( $same_type as $post ) { $related[] = $post; }
 			}
+			if ( $related ) {
+				echo '<div class=\"cns-mat-sec cns-related-materials\"><div class=\"cns-mat-sec-title\">Vật liệu liên quan</div>';
+				echo $this->render_grid( $this->mat_items_from_posts( array_slice( $related, 0, 6 ) ), false, 6 );
+				echo '</div>';
+			}
+
 			echo '</div>';
 		}
 	}
