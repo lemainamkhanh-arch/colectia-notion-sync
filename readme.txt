@@ -1,7 +1,7 @@
 === COLECTIA Notion Sync ===
 Requires at least: 5.8
 Requires PHP: 7.2
-Stable tag: 1.40.2
+Stable tag: 1.40.3
 License: GPLv2 or later
 
 Đồng bộ sản phẩm từ Notion database "Furniture Design" sang WooCommerce.
@@ -52,17 +52,8 @@ Ghi chú: khi nâng cấp plugin lên bản có trường mới, lần "Đồng 
 3. Trong Notion, mở database Furniture Design → menu "•••" → Connections → thêm integration vừa tạo.
 4. wp-admin → Settings → Notion Sync → dán token → Lưu → bấm "Đồng bộ ngay" để test.
 
-== 1.40.2 ==
-* HOTFIX khẩn: sửa lỗi cú pháp PHP của bản 1.40.1 gây lỗi nghiêm trọng trên toàn website.
-
-== 1.40.1 ==
-* Moodboard web: preview chỉ gồm thumbnail và danh sách vật liệu thường ở phía dưới, không còn hiệu ứng trên trang.
-* Hiệu ứng visual/drop shadow cho đá và da chỉ xuất hiện trong bản Xuất Moodboard.
-* Tinh chỉnh lại khối Next step và hai nút theo đúng thiết kế trang Dự án.
-
-== 1.40.0 ==
-* Thiết kế Moodboard dạng visual board; vật liệu Đá và Da có hiệu ứng chiều sâu/drop shadow.
-* Thêm Xuất Moodboard (bản in A4) và nút Yêu cầu sample để sẵn sàng kết nối kênh nhắn tin sau này.
+== 1.40.3 ==
+* PHỤC HỒI KHẨN: quay về mã nguồn đã xác nhận ổn định để khắc phục lỗi nghiêm trọng của các bản Moodboard sau đó.
 
 == 1.39.2 ==
 * Chuyển hai nút Moodboard ra khỏi phần Mô tả và đặt trong cột thông tin bên phải của trang chi tiết vật liệu.
