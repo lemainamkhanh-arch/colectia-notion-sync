@@ -4,7 +4,7 @@
  * Plugin URI:  https://colectia.vn
  * Update URI:  https://github.com/lemainamkhanh-arch/colectia-notion-sync
  * Description: Đồng bộ sản phẩm từ Notion database "Furniture Design" sang WooCommerce. Tick "Đăng lên web" trong Notion — plugin tạo/cập nhật sản phẩm và ghi ngược WP Product ID + link về Notion.
- * Version:     1.43.1
+ * Version:     1.43.2
  * Author:      COLECTIA
  * License:     GPLv2 or later
  * Requires PHP: 7.2
@@ -40,7 +40,7 @@ class Colectia_Notion_Sync {
 	const OPT_GH_TOKEN   = 'cns_gh_token';
 	const OPT_RW_VER     = 'cns_rw_ver';
 	const TR_GH          = 'cns_gh_latest';
-	const PLUGIN_VERSION = '1.43.1'; // Tăng số này để buộc đồng bộ lại toàn bộ, kể cả trang không đổi
+	const PLUGIN_VERSION = '1.43.2'; // Tăng số này để buộc đồng bộ lại toàn bộ, kể cả trang không đổi
 
 	// Tên property trong Notion (phải khớp với database)
 	const P_TITLE    = 'Name';
@@ -1301,7 +1301,7 @@ class Colectia_Notion_Sync {
 	public function redirect_to_project() { return wc_get_cart_url(); }
 	public function project_page_title( $title ) { return function_exists('is_cart') && is_cart() ? 'Dự án' : $title; }
 	public function disable_checkout_for_project() { if ( function_exists('is_checkout') && is_checkout() && ! is_order_received_page() ) { wp_safe_redirect( wc_get_cart_url() ); exit; } }
-	public function redirect_legacy_account_endpoints() { if(!function_exists('is_account_page')||!is_account_page()||!function_exists('is_wc_endpoint_url'))return;if(is_wc_endpoint_url('orders')||is_wc_endpoint_url('downloads')){wp_safe_redirect(wc_get_page_permalink('myaccount'));exit;} }
+	public function redirect_legacy_account_endpoints() { if(!function_exists('is_account_page')||!is_account_page()||!function_exists('is_wc_endpoint_url'))return;if(!is_wc_endpoint_url()){wp_safe_redirect(function_exists('wc_get_account_endpoint_url')?wc_get_account_endpoint_url('du-an'):wc_get_page_permalink('myaccount'));exit;}if(is_wc_endpoint_url('orders')||is_wc_endpoint_url('downloads')){wp_safe_redirect(function_exists('wc_get_account_endpoint_url')?wc_get_account_endpoint_url('du-an'):wc_get_page_permalink('myaccount'));exit;} }
 	public function project_add_message( $message, $products, $show_qty ) { $message=str_ireplace(array('đã được thêm vào giỏ hàng.','Xem giỏ hàng','View cart','has been added to your cart.'),array('đã được thêm vào dự án.','Xem dự án','Xem dự án','đã được thêm vào dự án.'),$message);return $message; }
 	private function project_category_term( $product_id ) { $terms=wp_get_post_terms($product_id,'product_cat');if(is_wp_error($terms)||!$terms)return null;usort($terms,function($a,$b){return count(get_ancestors($b->term_id,'product_cat'))-count(get_ancestors($a->term_id,'product_cat'));});return $terms[0]; }
 	public function project_cart_item_class( $class, $cart_item, $cart_item_key ) { $product=isset($cart_item['data'])?$cart_item['data']:null;$term=$product?$this->project_category_term($product->get_id()):null;return $class.($term?' cns-project-cat-'.sanitize_html_class($term->slug):' cns-project-cat-other'); }
@@ -1320,7 +1320,7 @@ class Colectia_Notion_Sync {
 	public function disable_product_reviews( $open, $post_id ) { return 'product'===get_post_type($post_id)?false:$open; }
 	public function replace_download_with_project_button() { if(!function_exists('is_product')||!is_product())return; ?><style>.single-product form.cart .quantity{display:none!important}.cns-download-project-form{margin:0!important;width:100%}.cns-download-project-form .single_add_to_cart_button{width:100%;font-family:inherit!important;background:#f1f1f1!important;color:#171717!important;border:1px solid #dedede!important}.cns-download-project-form .single_add_to_cart_button:hover{background:#fff!important;border-color:#777!important}</style><script>(function(){var form=document.querySelector('form.cart');if(!form)return;var target=[].slice.call(document.querySelectorAll('a,button')).find(function(el){var t=(el.textContent||'').trim().toLowerCase();return t==='tải xuống'||t==='download'});if(!target)return;var btn=form.querySelector('.single_add_to_cart_button');if(!btn)return;btn.textContent='THÊM VÀO DỰ ÁN';btn.className=target.className+' single_add_to_cart_button button alt';form.classList.add('cns-download-project-form');target.replaceWith(form)})();</script><?php }
 	public function register_project_account_endpoint() { add_rewrite_endpoint('du-an',EP_ROOT|EP_PAGES);add_rewrite_endpoint('moodboard',EP_ROOT|EP_PAGES);add_rewrite_endpoint('thong-tin',EP_ROOT|EP_PAGES); }
-	public function add_project_account_menu( $items ) { $menu=array('dashboard'=>'Trang tài khoản','du-an'=>'Dự án','moodboard'=>'Moodboard','thong-tin'=>'Thông tin');if(isset($items['customer-logout']))$menu['customer-logout']=$items['customer-logout'];return $menu; }
+	public function add_project_account_menu( $items ) { $menu=array('du-an'=>'Dự án','moodboard'=>'Moodboard','thong-tin'=>'Thông tin');if(isset($items['customer-logout']))$menu['customer-logout']=$items['customer-logout'];return $menu; }
 	public function render_project_account_page() {
 		$cart=(function_exists('WC')&&WC()->cart)?WC()->cart:null;$items=$cart?$cart->get_cart():array();$count=0;foreach($items as $entry)$count+=isset($entry['quantity'])?intval($entry['quantity']):0;$cart_url=function_exists('wc_get_cart_url')?wc_get_cart_url():home_url('/cart/');$shop_url=function_exists('wc_get_page_permalink')?wc_get_page_permalink('shop'):home_url('/');
 		echo '<div class="cns-account-project"><header class="cns-project-hero"><div><span class="cns-kicker">Your selection</span><h2>Dự án của bạn</h2><p>Danh sách nội thất và vật liệu bạn đang lưu cho không gian của mình.</p></div><div class="cns-project-hero-count"><strong>'.esc_html($count).'</strong><span>SẢN PHẨM</span></div></header>';
