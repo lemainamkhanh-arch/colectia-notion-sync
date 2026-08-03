@@ -4,7 +4,7 @@
  * Plugin URI:  https://colectia.vn
  * Update URI:  https://github.com/lemainamkhanh-arch/colectia-notion-sync
  * Description: Đồng bộ sản phẩm từ Notion database "Furniture Design" sang WooCommerce. Tick "Đăng lên web" trong Notion — plugin tạo/cập nhật sản phẩm và ghi ngược WP Product ID + link về Notion.
- * Version:     1.43.0
+ * Version:     1.43.1
  * Author:      COLECTIA
  * License:     GPLv2 or later
  * Requires PHP: 7.2
@@ -40,7 +40,7 @@ class Colectia_Notion_Sync {
 	const OPT_GH_TOKEN   = 'cns_gh_token';
 	const OPT_RW_VER     = 'cns_rw_ver';
 	const TR_GH          = 'cns_gh_latest';
-	const PLUGIN_VERSION = '1.43.0'; // Tăng số này để buộc đồng bộ lại toàn bộ, kể cả trang không đổi
+	const PLUGIN_VERSION = '1.43.1'; // Tăng số này để buộc đồng bộ lại toàn bộ, kể cả trang không đổi
 
 	// Tên property trong Notion (phải khớp với database)
 	const P_TITLE    = 'Name';
@@ -533,7 +533,7 @@ class Colectia_Notion_Sync {
 .cns-mat-specs th{text-align:left;width:42%;font-weight:400;color:#999;padding:10px 0;border-bottom:1px solid #eee;}
 .cns-mat-specs td{padding:10px 0;border-bottom:1px solid #eee;color:#222;}
 .cns-mat-dot{display:inline-block;width:12px;height:12px;border-radius:50%;margin-right:8px;vertical-align:-1px;border:1px solid rgba(0,0,0,.1);}
-.cns-mat-sec{margin-top:66px;}
+.cns-mat-sec{margin-top:66px;}.cns-related-materials{margin-top:104px;}
 .cns-mat-sec-title{font-size:12px;letter-spacing:.16em;text-transform:uppercase;color:#222;margin-bottom:24px;padding-bottom:12px;border-bottom:1px solid #eee;}
 .cns-mat-archive-head{text-align:center;max-width:720px;margin:0 auto 48px;}
 .cns-mat-group-title{font-size:12px;letter-spacing:.16em;text-transform:uppercase;color:#222;margin:44px 0 20px;}
@@ -1038,14 +1038,6 @@ class Colectia_Notion_Sync {
 				) );
 				foreach ( $same_collection as $post ) { $related[] = $post; $used_ids[] = $post->ID; }
 			}
-			if ( count( $related ) < 6 && $tname ) {
-				$same_type = get_posts( array(
-					'post_type' => self::CPT_MAT, 'post_status' => 'publish', 'posts_per_page' => 6 - count( $related ),
-					'post__not_in' => $used_ids, 'orderby' => 'menu_order date', 'order' => 'DESC',
-					'tax_query' => array( array( 'taxonomy' => self::TAX_MAT_TYPE, 'field' => 'name', 'terms' => $tname ) ),
-				) );
-				foreach ( $same_type as $post ) { $related[] = $post; }
-			}
 			if ( $related ) {
 				echo '<div class=\"cns-mat-sec cns-related-materials\"><div class=\"cns-mat-sec-title\">Vật liệu liên quan</div>';
 				echo $this->render_grid( $this->mat_items_from_posts( array_slice( $related, 0, 6 ) ), false, 6 );
@@ -1371,7 +1363,7 @@ public function render_moodboard_account_page() {
         foreach($materials as $m){echo '<article class="cns-account-mood-card">'.(!empty($m['image'])?'<img src="'.esc_url($m['image']).'" alt="'.esc_attr($m['name']).'">':'<span></span>').'<div><small>'.esc_html(isset($m['type'])?$m['type']:'').'</small><h3>'.esc_html($m['name']).'</h3>'.(!empty($m['code'])?'<em>'.esc_html($m['code']).'</em>':'').'</div></article>';}
         echo '</div></section><footer class="cns-mood-actions"><div><span class="cns-next-label">NEXT STEP</span><h3>Lưu lại bảng cảm hứng<br>cho dự án của bạn.</h3></div><div class="cns-mood-action-buttons"><a class="cns-action cns-action-dark" target="_blank" rel="noopener" href="'.esc_url(add_query_arg('cns_export_moodboard','1',function_exists('wc_get_account_endpoint_url')?wc_get_account_endpoint_url('moodboard'):home_url('/my-account/moodboard/'))).'">XUẤT MOODBOARD</a><button type="button" class="cns-action cns-action-light cns-request-sample" title="Tính năng sẽ sớm được kết nối">YÊU CẦU SAMPLE</button></div></footer>';
     }
-    echo '</div><style>.cns-account-moodboard{max-width:980px;margin:0 auto;color:#1b1b19}.woocommerce-MyAccount-navigation-link--orders,.woocommerce-MyAccount-navigation-link--downloads{display:none!important}.cns-account-section-head{padding:5px 0 27px;border-bottom:1px solid #dedbd5;margin-bottom:28px}.cns-account-section-head>span{display:block;font-size:9px;letter-spacing:.18em;text-transform:uppercase;color:#77736c}.cns-account-section-head h2{font-size:32px;line-height:1.1;font-weight:500;letter-spacing:-.025em;margin:8px 0}.cns-account-section-head p{font-size:13px;color:#777;margin:0}.cns-mood-list-head{display:flex;justify-content:space-between;padding:0 0 11px;font-size:9px;letter-spacing:.14em;color:#77736c;border-bottom:1px solid #dedbd5}.cns-account-mood-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;padding-top:14px}.cns-account-mood-card{border:1px solid #e3dfd8;background:#fff}.cns-account-mood-card>img,.cns-account-mood-card>span{display:block;width:100%;aspect-ratio:1;object-fit:cover;background:#eeeae4}.cns-account-mood-card>div{padding:10px}.cns-account-mood-card small{font-size:8px;letter-spacing:.12em;text-transform:uppercase;color:#888}.cns-account-mood-card h3{font-size:12px;line-height:1.25;font-weight:500;margin:4px 0}.cns-account-mood-card em{font-size:10px;color:#777;font-style:normal}.cns-mood-actions{display:flex;justify-content:space-between;align-items:flex-end;gap:25px;margin-top:36px;padding:30px;background:#efede8}.cns-next-label{display:block;font-size:9px;letter-spacing:.18em;color:#77736c}.cns-mood-actions h3{font-size:23px;line-height:1.18;font-weight:500;margin:7px 0 0}.cns-mood-action-buttons{display:flex;flex-wrap:wrap;gap:9px}.cns-action{display:inline-flex;align-items:center;justify-content:center;min-height:42px;padding:0 16px;border:1px solid #1b1b19;font:600 10px/1 inherit;letter-spacing:.1em;text-decoration:none!important;cursor:pointer}.cns-action-dark{background:#1b1b19;color:#fff}.cns-action-dark:hover{background:#fff;color:#1b1b19}.cns-action-light{background:transparent;color:#1b1b19}.cns-action-light:hover{background:#fff}.cns-account-empty{text-align:center;padding:76px 20px;background:#f7f6f3}.cns-account-empty>span{font-size:32px;color:#b3aea6}.cns-account-empty h3{font-size:24px;font-weight:500;margin:10px 0}.cns-account-empty p{max-width:380px;margin:0 auto 22px;color:#77736c;font-size:13px;line-height:1.6}@media(max-width:700px){.cns-account-mood-grid{grid-template-columns:repeat(3,minmax(0,1fr));gap:9px}.cns-mood-actions{display:block;padding:24px}.cns-mood-action-buttons{margin-top:20px}.cns-action{width:100%}}@media(max-width:430px){.cns-account-mood-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.cns-account-section-head h2{font-size:28px}}</style>';
+    echo '</div><style>.cns-account-moodboard{max-width:980px;margin:0 auto;color:#1b1b19}.woocommerce-MyAccount-navigation-link--orders,.woocommerce-MyAccount-navigation-link--downloads{display:none!important}.cns-account-section-head{padding:5px 0 27px;border-bottom:1px solid #dedbd5;margin-bottom:28px}.cns-account-section-head>span{display:block;font-size:9px;letter-spacing:.18em;text-transform:uppercase;color:#77736c}.cns-account-section-head h2{font-size:32px;line-height:1.1;font-weight:500;letter-spacing:-.025em;margin:8px 0}.cns-account-section-head p{font-size:13px;color:#777;margin:0}.cns-mood-list-head{display:flex;justify-content:space-between;padding:0 0 11px;font-size:9px;letter-spacing:.14em;color:#77736c;border-bottom:1px solid #dedbd5}.cns-account-mood-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;padding-top:14px}.cns-account-mood-card{border:1px solid #e3dfd8;background:#fff}.cns-account-mood-card>img,.cns-account-mood-card>span{display:block;width:100%;aspect-ratio:1;object-fit:cover;background:#eeeae4}.cns-account-mood-card>div{padding:10px}.cns-account-mood-card small{font-size:8px;letter-spacing:.12em;text-transform:uppercase;color:#888}.cns-account-mood-card h3{font-size:12px;line-height:1.25;font-weight:500;margin:4px 0}.cns-account-mood-card em{font-size:10px;color:#777;font-style:normal}.cns-mood-actions{display:flex;justify-content:space-between;align-items:flex-end;gap:25px;margin-top:36px;padding:30px;background:#efede8}.cns-next-label{display:block;font-size:9px;letter-spacing:.18em;color:#77736c}.cns-mood-actions h3{font-size:23px;line-height:1.18;font-weight:500;margin:7px 0 0}.cns-mood-action-buttons{display:flex;flex-wrap:wrap;gap:9px}.cns-action{display:inline-flex;align-items:center;justify-content:center;min-height:42px;padding:0 16px;border:1px solid #1b1b19;font-size:10px;font-weight:600;line-height:1;letter-spacing:.1em;text-decoration:none!important;cursor:pointer}.cns-action-dark{background:#1b1b19;color:#fff}.cns-action-dark:hover{background:#fff;color:#1b1b19}.cns-action-light{background:transparent;color:#1b1b19}.cns-action-light:hover{background:#fff}.cns-account-empty{text-align:center;padding:76px 20px;background:#f7f6f3}.cns-account-empty>span{font-size:32px;color:#b3aea6}.cns-account-empty h3{font-size:24px;font-weight:500;margin:10px 0}.cns-account-empty p{max-width:380px;margin:0 auto 22px;color:#77736c;font-size:13px;line-height:1.6}@media(max-width:700px){.cns-account-mood-grid{grid-template-columns:repeat(3,minmax(0,1fr));gap:9px}.cns-mood-actions{display:block;padding:24px}.cns-mood-action-buttons{margin-top:20px}.cns-action{width:100%}}@media(max-width:430px){.cns-account-mood-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.cns-account-section-head h2{font-size:28px}}</style>';
 }
 
 
@@ -1432,7 +1424,7 @@ public function render_information_account_page() { echo '<div class="cns-accoun
 		$t   = mb_strtoupper( trim( (string) $type ) );
 		$map = array(
 			'FABRIC'         => 'Vải',
-			'NATURAL STONE'  => 'Đá',
+			'NATURAL STONE'  => 'Đá tự nhiên',
 			'LEATHER'        => 'Da',
 			'NUBUCK'         => 'Da',
 			'COWHIDE'        => 'Da',
