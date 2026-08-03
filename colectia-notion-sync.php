@@ -4,7 +4,7 @@
  * Plugin URI:  https://colectia.vn
  * Update URI:  https://github.com/lemainamkhanh-arch/colectia-notion-sync
  * Description: Đồng bộ sản phẩm từ Notion database "Furniture Design" sang WooCommerce. Tick "Đăng lên web" trong Notion — plugin tạo/cập nhật sản phẩm và ghi ngược WP Product ID + link về Notion.
- * Version:     1.39.1
+ * Version:     1.39.2
  * Author:      COLECTIA
  * License:     GPLv2 or later
  * Requires PHP: 7.2
@@ -40,7 +40,7 @@ class Colectia_Notion_Sync {
 	const OPT_GH_TOKEN   = 'cns_gh_token';
 	const OPT_RW_VER     = 'cns_rw_ver';
 	const TR_GH          = 'cns_gh_latest';
-	const PLUGIN_VERSION = '1.39.1'; // Tăng số này để buộc đồng bộ lại toàn bộ, kể cả trang không đổi
+	const PLUGIN_VERSION = '1.39.2'; // Tăng số này để buộc đồng bộ lại toàn bộ, kể cả trang không đổi
 
 	// Tên property trong Notion (phải khớp với database)
 	const P_TITLE    = 'Name';
@@ -1019,6 +1019,7 @@ class Colectia_Notion_Sync {
 			echo '</tbody></table>';
 			$ex = get_the_excerpt();
 			if ( $ex ) { echo '<div class="cns-mat-lead">' . wp_kses_post( $ex ) . '</div>'; }
+			echo $this->material_moodboard_action( $id );
 			echo '</div></div>';
 			$content = apply_filters( 'the_content', get_the_content() );
 			if ( trim( wp_strip_all_tags( $content ) ) !== '' ) {
@@ -1281,7 +1282,6 @@ class Colectia_Notion_Sync {
 		add_filter( 'woocommerce_cart_item_class', array( $this, 'project_cart_item_class' ), 20, 3 );
 		add_action( 'wp_footer', array( $this, 'project_cart_live_script' ), 140 );
 		add_action( 'woocommerce_before_cart_totals', array( $this, 'render_project_moodboard' ), 5 );
-		add_filter( 'the_content', array( $this, 'append_material_moodboard_button' ), 30 );
 		add_action( 'wp_footer', array( $this, 'material_moodboard_script' ), 150 );
 		add_action( 'wp_ajax_cns_add_moodboard', array( $this, 'ajax_add_moodboard' ) );
 		add_action( 'wp_ajax_nopriv_cns_add_moodboard', array( $this, 'ajax_add_moodboard' ) );
@@ -1335,8 +1335,8 @@ class Colectia_Notion_Sync {
 		$out=array();foreach($all as $m){$key=sanitize_title($m['name'].'-'.$m['code']);$out[$key]=$m;}return array_values($out);
 	}
 	public function render_project_moodboard() { $materials=$this->get_project_moodboard_materials();echo '<section class="cns-project-moodboard"><div class="cns-moodboard-head"><span>Material palette</span><h2>Moodboard</h2></div>';if(!$materials){echo '<p class="cns-moodboard-empty">Chưa có vật liệu trong Moodboard.</p>';}else{echo '<div class="cns-moodboard-grid">';foreach($materials as $m){echo '<article class="cns-mood-card">'.(!empty($m['image'])?'<img src="'.esc_url($m['image']).'" alt="'.esc_attr($m['name']).'">':'<span class="cns-mood-placeholder"></span>').'<div><small>'.esc_html($m['type']).'</small><strong>'.esc_html($m['name']).'</strong>'.(!empty($m['code'])?'<em>'.esc_html($m['code']).'</em>':'').'</div></article>';}echo '</div>';}echo '</section>'; }
-	public function append_material_moodboard_button( $content ) { if(!is_singular(self::CPT_MAT)||!in_the_loop()||!is_main_query())return $content;$id=get_the_ID();$added=in_array($id,$this->get_saved_moodboard_ids(),true);$mood_url=function_exists('wc_get_account_endpoint_url')?wc_get_account_endpoint_url('moodboard'):wc_get_page_permalink('myaccount');return $content.'<div class="cns-material-moodboard-action"><button type="button" class="cns-add-moodboard'.($added?' is-added':'').'" data-material="'.esc_attr($id).'">'.($added?'ĐÃ CÓ TRONG MOODBOARD':'THÊM VÀO MOODBOARD').'</button><a class="cns-go-moodboard" href="'.esc_url($mood_url).'">TỚI MOODBOARD</a></div>'; }
-	public function material_moodboard_script() { if(!is_singular(self::CPT_MAT))return;$nonce=wp_create_nonce('cns_moodboard');?><style>.cns-material-moodboard-action{display:flex;align-items:stretch;gap:10px;margin:28px 0}.cns-add-moodboard,.cns-go-moodboard{display:inline-flex;align-items:center;justify-content:center;min-height:44px;padding:0 20px;border:1px solid #1b1b19;font:600 12px/1.2 inherit;letter-spacing:.09em;text-decoration:none!important;cursor:pointer}.cns-add-moodboard{background:#1b1b19;color:#fff}.cns-add-moodboard:hover,.cns-add-moodboard.is-added{background:#fff;color:#1b1b19}.cns-go-moodboard{background:#fff;color:#1b1b19}.cns-go-moodboard:hover{background:#1b1b19;color:#fff}@media(max-width:575px){.cns-material-moodboard-action{flex-direction:column}.cns-add-moodboard,.cns-go-moodboard{width:100%}}</style><script>(function(){var b=document.querySelector('.cns-add-moodboard');if(!b)return;b.addEventListener('click',function(){if(b.classList.contains('is-added'))return;var d=new URLSearchParams({action:'cns_add_moodboard',nonce:'<?php echo esc_js($nonce); ?>',material_id:b.dataset.material});fetch('<?php echo esc_url(admin_url('admin-ajax.php')); ?>',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:d.toString()}).then(function(r){return r.json()}).then(function(r){if(r.success){b.classList.add('is-added');b.textContent='ĐÃ CÓ TRONG MOODBOARD'}})})})();</script><?php }
+	private function material_moodboard_action( $id ) { $added=in_array(absint($id),$this->get_saved_moodboard_ids(),true);$mood_url=function_exists('wc_get_account_endpoint_url')?wc_get_account_endpoint_url('moodboard'):wc_get_page_permalink('myaccount');return '<div class="cns-material-moodboard-action"><span class="cns-moodboard-label">Lưu vào bảng cảm hứng</span><div class="cns-moodboard-buttons"><button type="button" class="cns-add-moodboard'.($added?' is-added':'').'" data-material="'.esc_attr($id).'">'.($added?'ĐÃ CÓ TRONG MOODBOARD':'THÊM VÀO MOODBOARD').'</button><a class="cns-go-moodboard" href="'.esc_url($mood_url).'">TỚI MOODBOARD</a></div></div>'; }
+	public function material_moodboard_script() { if(!is_singular(self::CPT_MAT))return;$nonce=wp_create_nonce('cns_moodboard');?><style>.cns-mat-hero-info .cns-material-moodboard-action{margin:28px 0 0;padding-top:20px;border-top:1px solid #e8e5df}.cns-moodboard-label{display:block;margin-bottom:9px;font-size:9px;letter-spacing:.15em;text-transform:uppercase;color:#7c7871}.cns-moodboard-buttons{display:flex;align-items:stretch;gap:8px}.cns-add-moodboard,.cns-go-moodboard{display:inline-flex;align-items:center;justify-content:center;min-height:40px;padding:0 15px;border:1px solid #1b1b19;font:600 10px/1.2 inherit;letter-spacing:.09em;text-decoration:none!important;cursor:pointer}.cns-add-moodboard{background:#1b1b19;color:#fff}.cns-add-moodboard:hover,.cns-add-moodboard.is-added{background:#fff;color:#1b1b19}.cns-go-moodboard{background:#fff;color:#1b1b19}.cns-go-moodboard:hover{background:#1b1b19;color:#fff}@media(max-width:575px){.cns-moodboard-buttons{flex-direction:column}.cns-add-moodboard,.cns-go-moodboard{width:100%}}</style><script>(function(){var b=document.querySelector('.cns-add-moodboard');if(!b)return;b.addEventListener('click',function(){if(b.classList.contains('is-added'))return;var d=new URLSearchParams({action:'cns_add_moodboard',nonce:'<?php echo esc_js($nonce); ?>',material_id:b.dataset.material});fetch('<?php echo esc_url(admin_url('admin-ajax.php')); ?>',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:d.toString()}).then(function(r){return r.json()}).then(function(r){if(r.success){b.classList.add('is-added');b.textContent='ĐÃ CÓ TRONG MOODBOARD'}})})})();</script><?php }
 	public function ajax_add_moodboard() { check_ajax_referer('cns_moodboard','nonce');$id=isset($_POST['material_id'])?absint($_POST['material_id']):0;if(!$id||self::CPT_MAT!==get_post_type($id))wp_send_json_error();if(!function_exists('WC')||!WC()->session)wp_send_json_error();$ids=$this->get_saved_moodboard_ids();$ids[]=$id;$ids=array_values(array_unique(array_map('absint',$ids)));WC()->session->set('cns_moodboard_ids',$ids);if(is_user_logged_in())update_user_meta(get_current_user_id(),'cns_moodboard_ids',$ids);wp_send_json_success(array('url'=>wc_get_account_endpoint_url('moodboard'))); }
 
 	public function render_project_overview() {
